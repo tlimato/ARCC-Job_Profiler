@@ -4,8 +4,7 @@ ARCC Benchmarking Toolkit
 The ARCC Benchmarking Toolkit is a comprehensive project aimed at providing researchers and developers in the field of machine learning (ML) and artificial intelligence (AI) with essential resources and tools to enhance their projects and push the boundaries of their respective domains. In response to the rapid evolution of ML and AI, this toolkit focuses on benchmarking and performance analysis, catering to evolving requirements and ensuring optimal utilization of cutting-edge computing hardware.
 
 Overview
---------
-
+---------
 Existing AI benchmarks have their limitations, such as fixed problem sizes and lack of specificity in ML/AI models. The ARCC Benchmarking Toolkit addresses these limitations by offering a purpose-built solution for evaluating ML/AI algorithms. It encompasses a wide range of ML/AI workloads, ensuring scalability across diverse computing platforms, and providing valuable insights into GPU performance under various conditions.
 
 Features
