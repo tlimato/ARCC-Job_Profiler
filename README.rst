@@ -28,7 +28,11 @@ Installation and Usage
 
    git clone https://github.com/arcc-benchmarking-toolkit.git
 
+   ==[package not currently published]== Additionally, if you are using an envrionment manager such as miniconda + pip you can simply run ::
+   pip install ARCC-Profiler
+
 3. **Setup and Configuration:** Follow the instructions provided in the repository's documentation to set up and configure the toolkit according to your system requirements.
+``==[ADD INFO REGARDING FUNCTION CALLS]
 
 4. **Benchmarking Process:** Utilize the toolkit to benchmark your ML/AI algorithms. Refer to the documentation for detailed instructions on how to execute benchmarks and gather performance data.
 
