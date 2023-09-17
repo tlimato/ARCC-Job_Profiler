@@ -42,14 +42,3 @@ Example Insights
 
 An example observation within the toolkit involved examining Disk IOP performance for GPT-style models. During the Docker Container-based test of GPT2, a 13 percent reduction in IOPS was consistently observed between each epoch. This finding illuminated potential bottlenecks in the Data loading pipeline, offering actionable insights for optimizing future workloads.
 
-Contributing
-------------
-
-We welcome contributions from the community to enhance and extend the ARCC Benchmarking Toolkit. Feel free to submit issues, feature requests, or pull requests to help us improve the toolkit's functionality and usability.
-
-Contact
--------
-
-For inquiries and support, please contact our team at benchmarking@arcc.org.
-
-By providing transparent and precise performance data, the ARCC Benchmarking Toolkit aims to empower researchers in making informed GPU selections for specific algorithms, ultimately contributing to impactful research outcomes. This initiative underscores our commitment to advancing ML/AI research and equipping researchers with indispensable tools to drive innovation within the field.
