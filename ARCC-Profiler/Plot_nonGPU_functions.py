@@ -2,7 +2,9 @@
 # project: GPU Benchmarking
 # Purpose: Seamless visualization of Non-GPU statistics
 # Start Date: 6/28/2023
-
+# file Name: Plot_nonGPU_functions.py
+import argparse
+import multiprocessing
 # External Library Error Handling
 
 try:
@@ -80,9 +82,11 @@ def run_in_thread(func):
 
 
 class BASE_DataCollection:
-    def __init__(self, cpu_ram_output_file='CPU_RAM_Utilization.csv', cpu_time_interval=1, autoclean=False):
+    def __init__(self, custom_log_file="custom_log.csv", cpu_ram_output_file='CPU_RAM_Utilization.csv',
+                 cpu_time_interval=1, autoclean=False):
         self.CPU_RAM_File = cpu_ram_output_file
         self.CPU_Time_Interval = cpu_time_interval
+        self.tracking_results_file = custom_log_file
         self.auto_clean = autoclean
         # Update disk IOPS counters
         self.disk_io_counters = psutil.disk_io_counters()
@@ -154,6 +158,7 @@ class ML_DataCollection(BASE_DataCollection):
     def __init__(self, training_output_file='training_results.csv', cpu_ram_output_file='CPU_RAM_Utilization.csv',
                  cpu_time_interval=1, batch_size=None, autoclean=False):
         # Call Parent __init__
+        # noinspection PyTypeChecker
         super().__init__(cpu_ram_output_file, cpu_time_interval, autoclean)
         self.training_results_file = training_output_file
         if batch_size is None:
@@ -177,6 +182,16 @@ class ML_DataCollection(BASE_DataCollection):
                              'Throughput (Seq/sec)',
                              'Disk Read IOPS',
                              'Disk Write IOPS'])
+
+    @staticmethod  # Make more transparent to the user
+    def start_batch():
+        start = time.time()
+        return start
+
+    @staticmethod  # Make more transparent to the user
+    def end_batch():
+        end = time.time()
+        return end
 
     def __del__(self):
         # Handle exception and log error message
@@ -255,15 +270,200 @@ class ML_DataCollection(BASE_DataCollection):
                 [epoch, batch_num, training_losses[-1], self.batch_time, self.throughput, disk_read_iops,
                  disk_write_iops])
 
-    @staticmethod  # Make more transparent to the user
-    def start_batch():
-        start = time.time()
-        return start
 
-    @staticmethod  # Make more transparent to the user
-    def end_batch():
-        end = time.time()
-        return end
+# DEDICATED IOPS TRACKER FOR DEPLOYMENT OF AI MODELS OR GENERAL WORKLOAD
+class DiskIOPSTracker:
+    def __init__(self, tracking_results_file):
+        self.tracking_thread = None
+        self.tracking_results_file = tracking_results_file
+        self.stop_tracking = False
+        self.lock = threading.Lock()
+
+    def track_iops(self):
+        while not self.stop_tracking:
+            start_time = time.time()
+
+            # Get disk I/O statistics using psutil
+            disk_io_counters = psutil.disk_io_counters()
+            start_read_count, start_write_count = disk_io_counters.read_count, disk_io_counters.write_count
+
+            # Simulate some disk I/O operations here (replace this with your actual disk I/O operations)
+            time.sleep(1)  # Simulate some disk operations for 1 second
+
+            end_time = time.time()
+
+            # Get disk I/O statistics again
+            disk_io_counters = psutil.disk_io_counters()
+            end_read_count, end_write_count = disk_io_counters.read_count, disk_io_counters.write_count
+
+            # Calculate disk read and write IOPS for this interval
+            disk_read_iops = (end_read_count - start_read_count) / (end_time - start_time)
+            disk_write_iops = (end_write_count - start_write_count) / (end_time - start_time)
+
+            # Write the metrics to a CSV file
+            with open(self.tracking_results_file, 'a', newline='') as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow([end_time, disk_read_iops, disk_write_iops])
+
+    def start_tracking(self):
+        self.stop_tracking = False
+        self.tracking_thread = threading.Thread(target=self.track_iops)
+        self.tracking_thread.start()
+
+    def stop_tracking(self):
+        self.stop_tracking = True
+        self.tracking_thread.join()
+
+
+# DEDICATED CPU TRACKER FOR DEPLOYMENT OF AI MODELS OR GENERAL WORKLOAD
+class CPUMonitor:
+    def __init__(self, output_file_path, cpu_time_interval=1, auto_clean=True):
+        self.CPU_Time_Interval = cpu_time_interval
+        self.auto_clean = auto_clean
+        self.output_file_path = output_file_path
+
+    def monitor_cpu_utilization(self):
+        with open(self.output_file_path, mode='a', newline='') as results_file:
+            writer = csv.writer(results_file)
+            writer.writerow(['Core Time', 'CPU Utilization'])
+
+        try:
+            core_time = 0
+            while True:
+                # Get CPU utilization
+                cpu_percent = psutil.cpu_percent(interval=self.CPU_Time_Interval)
+
+                core_time += self.CPU_Time_Interval
+                with open(self.output_file_path, mode='a', newline='') as results_file:
+                    writer = csv.writer(results_file)
+                    writer.writerow([core_time, cpu_percent])
+
+                # Sleep for the specified interval
+                time.sleep(self.CPU_Time_Interval)
+
+        except KeyboardInterrupt:
+            # Handle exception and log error message
+            if not self.auto_clean:
+                warning_message = (
+                    "WARNING: 'auto_clean' set to 'False' by Default, CPU Data Collection Aborted.\n"
+                    "Make sure you delete old Data files before rerunning code"
+                )
+                warnings.warn(warning_message, UserWarning)
+            else:
+                warning_message = (
+                    "WARNING: 'auto_clean' set to 'True', CPU Data Collection Aborted.\n"
+                    "Old Data Files have been Deleted"
+                )
+                warnings.warn(warning_message, UserWarning)
+                try:
+                    os.remove(self.output_file_path)
+                    print(f"File '{self.output_file_path}' deleted successfully.")
+                except FileNotFoundError:
+                    print(f"File '{self.output_file_path}' not found.")
+                except Exception as e:
+                    print(f"An error occurred: {e}")
+            # Close the CSV file properly
+            sys.exit(1)
+
+
+# DEDICATED MEMORY TRACKER FOR DEPLOYMENT OF AI MODELS OR GENERAL WORKLOAD
+class MemoryMonitor:
+    def __init__(self, output_file_path, memory_time_interval=1, auto_clean=True):
+        self.Memory_Time_Interval = memory_time_interval
+        self.auto_clean = auto_clean
+        self.output_file_path = output_file_path
+
+    def monitor_memory_utilization(self):
+        with open(self.output_file_path, mode='a', newline='') as results_file:
+            writer = csv.writer(results_file)
+            writer.writerow(['Core Time', 'Memory Utilization (%)'])
+
+        try:
+            core_time = 0
+            while True:
+                # Get memory (RAM) utilization
+                memory_percent = psutil.virtual_memory().percent
+
+                core_time += self.Memory_Time_Interval
+                with open(self.output_file_path, mode='a', newline='') as results_file:
+                    writer = csv.writer(results_file)
+                    writer.writerow([core_time, memory_percent])
+
+                # Sleep for the specified interval
+                time.sleep(self.Memory_Time_Interval)
+
+        except KeyboardInterrupt:
+            # Handle exception and log error message
+            if not self.auto_clean:
+                warning_message = (
+                    "WARNING: 'auto_clean' set to 'False' by Default, Memory Data Collection Aborted.\n"
+                    "Make sure you delete old Data files before rerunning code"
+                )
+                warnings.warn(warning_message, UserWarning)
+            else:
+                warning_message = (
+                    "WARNING: 'auto_clean' set to 'True', Memory Data Collection Aborted.\n"
+                    "Old Data Files have been Deleted"
+                )
+                warnings.warn(warning_message, UserWarning)
+                try:
+                    os.remove(self.output_file_path)
+                    print(f"File '{self.output_file_path}' deleted successfully.")
+                except FileNotFoundError:
+                    print(f"File '{self.output_file_path}' not found.")
+                except Exception as e:
+                    print(f"An error occurred: {e}")
+            # Close the CSV file properly
+            sys.exit(1)
+
+
+class CPUThreadsMonitor:
+    def __init__(self, output_file_path, threads_time_interval=1, auto_clean=True):
+        self.Threads_Time_Interval = threads_time_interval
+        self.auto_clean = auto_clean
+        self.output_file_path = output_file_path
+
+    def monitor_cpu_threads(self):
+        with open(self.output_file_path, mode='a', newline='') as results_file:
+            writer = csv.writer(results_file)
+            writer.writerow(['Core Time', 'Active CPU Threads'])
+
+        try:
+            core_time = 0
+            while True:
+                # Get the number of active CPU threads
+                active_threads = multiprocessing.active_children()
+                core_time += self.Threads_Time_Interval
+                with open(self.output_file_path, mode='a', newline='') as results_file:
+                    writer = csv.writer(results_file)
+                    writer.writerow([core_time, active_threads])
+
+                # Sleep for the specified interval
+                time.sleep(self.Threads_Time_Interval)
+
+        except KeyboardInterrupt:
+            # Handle exception and log error message
+            if not self.auto_clean:
+                warning_message = (
+                    "WARNING: 'auto_clean' set to 'False' by Default, CPU Threads Data Collection Aborted.\n"
+                    "Make sure you delete old Data files before rerunning code"
+                )
+                warnings.warn(warning_message, UserWarning)
+            else:
+                warning_message = (
+                    "WARNING: 'auto_clean' set to 'True', CPU Threads Data Collection Aborted.\n"
+                    "Old Data Files have been Deleted"
+                )
+                warnings.warn(warning_message, UserWarning)
+                try:
+                    os.remove(self.output_file_path)
+                    print(f"File '{self.output_file_path}' deleted successfully.")
+                except FileNotFoundError:
+                    print(f"File '{self.output_file_path}' not found.")
+                except Exception as e:
+                    print(f"An error occurred: {e}")
+            # Close the CSV file properly
+            sys.exit(1)
 
 
 class DataPlotter:
