@@ -272,7 +272,7 @@ class ML_DataCollection(BASE_DataCollection):
 
 
 # DEDICATED IOPS TRACKER FOR DEPLOYMENT OF AI MODELS OR GENERAL WORKLOAD
-class DiskIOPSTracker:
+class DiskIOPSMonitor:
     def __init__(self, tracking_results_file):
         self.tracking_thread = None
         self.tracking_results_file = tracking_results_file
